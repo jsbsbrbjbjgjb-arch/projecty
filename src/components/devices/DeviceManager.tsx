@@ -8,22 +8,14 @@ import {
   type DeviceRow,
 } from "@/components/devices/devicesApi";
 import { SecretRevealDialog } from "@/components/devices/SecretRevealDialog";
+import { FreshnessBadge } from "@/components/telemetry/FreshnessBadge";
+import { formatAge, getFreshness } from "@/lib/telemetryStatus";
 
-const ONLINE_WINDOW_MS = 2 * 60 * 1000;
 const MAX_NAME_LENGTH = 60;
 
 interface RevealedSecret {
   deviceName: string;
   secret: string;
-}
-
-function formatLastSeen(iso: string | undefined): string {
-  if (!iso) return "No readings yet";
-  const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} min ago`;
-  return new Date(iso).toLocaleString();
 }
 
 export function DeviceManager() {
@@ -165,9 +157,8 @@ export function DeviceManager() {
           <ul className="divide-y divide-neutral-200/70">
             {devices.map((device) => {
               const revoked = device.revoked_at !== null;
-              const lastReported = device.state?.reported_at;
-              const online =
-                !revoked && lastReported !== undefined && Date.now() - new Date(lastReported).getTime() < ONLINE_WINDOW_MS;
+              const lastReported = device.state?.reported_at ?? null;
+              const freshness = getFreshness(lastReported, Date.now());
               const busy = busyDeviceId === device.id;
 
               return (
@@ -175,22 +166,20 @@ export function DeviceManager() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="truncate font-medium text-neutral-900">{device.name}</p>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          revoked
-                            ? "bg-neutral-100 text-neutral-600"
-                            : online
-                              ? "bg-nature-100 text-nature-800"
-                              : "bg-amber-50 text-amber-700"
-                        }`}
-                      >
-                        {revoked ? "Revoked" : online ? "Online" : "Offline"}
-                      </span>
+                      {revoked ? (
+                        <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-600">
+                          Revoked
+                        </span>
+                      ) : (
+                        <FreshnessBadge level={freshness} />
+                      )}
                     </div>
                     <p className="mt-1 text-xs text-neutral-500">
                       {revoked
                         ? "This device can no longer connect."
-                        : `Last reading: ${formatLastSeen(lastReported)}`}
+                        : lastReported
+                          ? `Last reading: ${formatAge(lastReported, Date.now())}`
+                          : "No readings yet"}
                       {!revoked && device.state && (
                         <>
                           {" · "}Moisture {Number(device.state.moisture_percent).toFixed(1)}%

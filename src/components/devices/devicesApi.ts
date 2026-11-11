@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 
 export interface DeviceState {
   reported_at: string;
+  raw_reading: number;
   moisture_percent: number;
   pump_on: boolean;
 }
@@ -40,7 +41,7 @@ async function readFunctionError(error: unknown): Promise<string> {
 export async function fetchDevices(): Promise<DeviceRow[]> {
   const { data, error } = await supabase
     .from("devices")
-    .select("id, name, created_at, revoked_at, device_states(reported_at, moisture_percent, pump_on)")
+    .select("id, name, created_at, revoked_at, device_states(reported_at, raw_reading, moisture_percent, pump_on)")
     .order("created_at", { ascending: false });
 
   if (error || !Array.isArray(data)) {
