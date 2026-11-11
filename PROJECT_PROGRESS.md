@@ -77,6 +77,27 @@ Open security issues:
 - Security advisor: no blocking findings. Over-broad browser grants and performance warnings are listed under the audit findings.
 - Not yet verified: end-to-end test with a real owner account and a real device (requires owner sign-up and hardware).
 
+### Milestone 3 — Telemetry Dashboard (BUILT, UNTESTED WITH HARDWARE)
+
+**What was built (frontend):**
+- Overview page: live device status (online/offline from last reading time), latest moisture, raw reading, pump state, and the most recent commands. Updates through Realtime on the device state and command tables; a 15-second clock keeps "last seen" text fresh.
+- Sensor History page: moisture chart over selectable ranges with a visible note when the history is truncated. Live new readings are appended through Realtime.
+- Device selector appears only when the owner has two or more devices.
+- Shared status badge and relative-time helpers used by both the device manager and dashboards.
+- Empty, loading and error states on every panel, with retry where data can fail.
+
+**Database change:**
+- Migration `add_commands_to_realtime`: adds the commands table to the Realtime publication so command status changes reach the dashboard. No grants or policies changed.
+
+**Verification:**
+- Typecheck: PASS.
+- Production build: PASS.
+- Lint: 0 errors; one pre-existing warning in the auth context file.
+- Security and performance advisors: informational only (device credentials table has RLS with no client policy, intentionally; unused indexes are expected on an empty database).
+- Not verified: live display with real readings. The database currently has no owner account, device or readings, so the dashboards can only show empty states until hardware is connected.
+
+**Not built yet:** ESP8266/Arduino firmware (no firmware exists in the project), pump control buttons, automation rules, schedules, alerts, and settings extensions (calibration, retention, pump safety).
+
 ---
 
 ## Architecture Decisions
@@ -139,14 +160,19 @@ Server-only (provided automatically to Edge Functions, never in browser or firmw
 
 ## Next Actions
 
-**Awaiting approval for Milestone 2.** Decisions needed:
-1. Approve trimming browser-role write grants to SELECT only (issue 1 above).
-2. Approve the performance fixes (auth call wrapping and the foreign-key index).
-3. Approve end-to-end tests with a test owner account and a test device, which write test rows to the database.
+Status of earlier audit decisions:
+1. Browser-role write grants were trimmed to SELECT only, and the policies were rewritten to use the caller-wrapped auth check (applied in the hardening migration).
+2. The performance fixes (auth call wrapping, index on commands.requested_by) were applied.
+3. End-to-end tests with a real owner account and device have not been run.
 
 Manual steps for the owner:
-1. Sign up with your email and password first. Your account becomes the owner.
+1. Sign up with your email and password first. Your account becomes the owner. The live database currently has no accounts, so this must be repeated.
 2. Open Settings, register your device, and copy its secret into the ESP8266 once shown.
 3. Keep the secret private; if lost, generate a new one from Settings.
+4. Follow SETUP.md for the wiring and firmware steps.
 
-Milestone 3 (after approval): review firmware sketches, connect the ESP8266 to the device endpoints, and build live readings and pump controls.
+Remaining work, in order:
+1. Firmware for the ESP8266 (telemetry every 8 seconds, command acknowledgements, sequence counter saved across restarts).
+2. Pump control buttons on the Pump page, using the owner command endpoint.
+3. Automation rules, schedules, alerts and settings extensions.
+4. End-to-end testing with hardware.
